@@ -8,3 +8,6 @@ webhook_url = ""
 
 [mystbin]
 token = ""
+
+[db]
+dsn = ""
