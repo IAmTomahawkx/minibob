@@ -1,0 +1,6 @@
+git+https://github.com/rapptz/discord.py@master
+tabulate
+toml
+jishaku
+psutil
+asyncpg
