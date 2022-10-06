@@ -3,6 +3,7 @@ import datetime
 
 import asyncpg
 import yarl
+import re
 import pprint
 import tabulate
 from typing import Optional, Union, cast, TYPE_CHECKING
