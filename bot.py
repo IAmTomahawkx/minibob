@@ -49,7 +49,7 @@ async def main():
     intents.message_content = True
     intents.members = True
 
-    bot = Bot("[", intents=intents)
+    bot = Bot("]", intents=intents)
     discord.utils.setup_logging(root=False)
     async with bot:
         await bot.start(bot.config["discord"]["token"])
