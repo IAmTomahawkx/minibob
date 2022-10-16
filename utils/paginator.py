@@ -254,7 +254,7 @@ class FieldPages(Pages):
         self,
         ctx,
         *,
-        entries,
+        entries: list[tuple[str, str]],
         per_page=12,
         show_entry_count=True,
         description=None,

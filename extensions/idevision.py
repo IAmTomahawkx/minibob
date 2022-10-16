@@ -71,7 +71,7 @@ class Idevision(commands.Cog):
         self.usage = {}
         self.session = aiohttp.ClientSession(headers={"Authorization": bot.config['idevision']['token'], "User-Agent": "MiniBOB"})
         self._hook_session = aiohttp.ClientSession()
-        self.hook = discord.Webhook.from_url(bot.config['idevision']['webhook_url'], session=self._hook_session)
+        self.hook: discord.Webhook = discord.Webhook.from_url(bot.config['idevision']['webhook_url'], session=self._hook_session) # noqa
 
     async def cog_load(self) -> None:
         self.db: asyncpg.Pool = await asyncpg.create_pool(self.bot.config["db"]["dsn"])
@@ -119,7 +119,7 @@ class Idevision(commands.Cog):
         await ctx.send(embed=e)
 
     @commands.group(aliases=['rtfd', "rtm", "rtd"], invoke_without_command=True, help="read the fucking docs. see `!help rtfm`")
-    async def rtfm(self, ctx, *, obj: Optional[str] = None):
+    async def rtfm(self, ctx: Context, *, obj: Optional[str] = None):
         """
         view the documentation of the modules available in `rtfm list`.
         use their *quick* name to access it in the rtfm command, as such:
@@ -127,7 +127,7 @@ class Idevision(commands.Cog):
 
         By default, labels are not shown in the results. To enable labels, use the `--labels` flag
         """
-        await ctx.trigger_typing()
+        await ctx.typing()
 
         labels = False
         obvious_labels = False
@@ -193,7 +193,7 @@ class Idevision(commands.Cog):
 
     @rtfm.command()
     @commands.has_permissions(manage_guild=True)
-    async def default(self, ctx, default: str):
+    async def default(self, ctx: Context, default: str):
         """
         sets a default rtfm for your guild, so you don't need to type the docs prefix each time.
         requires the `Bot Editor` role or higher
@@ -258,7 +258,7 @@ class Idevision(commands.Cog):
 
     @rtfm.command(hidden=True)
     @commands.is_owner()
-    async def remove(self, ctx, quick: str):
+    async def remove(self, ctx: Context, quick: str):
         await self.db.execute("DELETE FROM pages WHERE quick = $1", quick)
         if quick in self.pages:
             del self.pages[quick]
@@ -268,7 +268,7 @@ class Idevision(commands.Cog):
     @rtfm.before_invoke
     @default.before_invoke
     @add.before_invoke
-    async def rtfm_pre(self, ctx):
+    async def rtfm_pre(self, ctx: Context):
         if not self.pages:
             data = await self.db.fetch("SELECT * FROM pages")
             for record in data:
@@ -383,7 +383,13 @@ class Idevision(commands.Cog):
                 if move == "transcript":
                     async with self.session.post(self.url + "games/chess/transcript", json={"board": board}) as resp:
                         transcript = await resp.text()
-                    await ctx.paginate_text("Click \U000023f9 to continue with the game\n" + transcript, allow_stop=True)
+
+                    if len(transcript) > 1500:
+
+                        pages = paginator.TextPages(ctx, "Click \U000023f9 to continue with the game\n" + transcript, max_size=1500, prefix="", suffix="")
+                        await pages.paginate()
+                    else:
+                        await ctx.send(transcript)
 
             async with self.session.post(self.url + "games/chess/turn", json={"board": board, "move": move, "move-turn": "black" if turn else "white"}) as resp:
                 if resp.status == 417:
@@ -511,7 +517,8 @@ class Idevision(commands.Cog):
         else:
             n = next(iter(nodes.items()))
             await ctx.reply(f"Showing source for {n[0]}\nCommit: {data['commit']}", mention_author=False)
-            await ctx.paginate_text(n[1], True, "py")
+            pages = paginator.TextPages(ctx, n[1], prefix="```py")
+            await pages.paginate()
 
     @commands.command("rtfs-reload")
     @commands.cooldown(1, 180)
@@ -539,7 +546,7 @@ class Idevision(commands.Cog):
 
     @commands.command()
     @commands.cooldown(4, 10)
-    async def ocr(self, ctx, attachment: Optional[str] = None):
+    async def ocr(self, ctx: Context, attachment: Optional[str] = None):
         """
         Preforms OCR on an image. This image can be uploaded as an attachment, or passed as a url link.
         OCR api: https://idevision.net/docs
@@ -566,7 +573,7 @@ class Idevision(commands.Cog):
                 return await ctx.send(f"The api responded with {r.status}: {r.reason}")
             else:
                 d = await r.json()
-                await ctx.paginate_text(d['data'], codeblock=True)
+                pages = paginator.TextPages(ctx, d['data'])
 
     @commands.group(aliases=["id"], invoke_without_command=True)
     async def idevision(self, ctx):
@@ -612,7 +619,7 @@ class Idevision(commands.Cog):
             if resp.status == 403:
                 return await ctx.send(f"Failed to make the request (unauthorized): {await resp.text(), resp.reason}")
             elif resp.status != 201:
-                return await ctx.paginate_text(f"Internal error: {resp.status}, {resp.reason}")
+                return await ctx.send(f"Internal error: {resp.status}, {resp.reason}")
             else:
                 emb = discord.Embed(colour=discord.Colour.dark_gold(), title="Application Recieved", description=f"([jump url]({ctx.message.jump_url}))\nReason:\n{reason}")
                 emb = emb.set_author(name=str(ctx.author), icon_url=str(cast(discord.Asset, ctx.author.avatar).url)).set_footer(text=str(ctx.author.id))
@@ -622,7 +629,7 @@ class Idevision(commands.Cog):
 
     @idevision.command("accept", aliases=['approve'])
     @commands.is_owner()
-    async def accept(self, ctx, user: discord.User):
+    async def accept(self, ctx: Context, user: discord.User):
         async with self.session.post(self.url + "internal/users/accept", json={"userid": user.id}) as resp:
             if resp.status != 201:
                 return await ctx.send(f"Internal error: {resp.status}, {resp.reason}")
@@ -637,7 +644,7 @@ class Idevision(commands.Cog):
 
     @idevision.command("deny", aliases=['decline'])
     @commands.is_owner()
-    async def user_deny(self, ctx, user: discord.User, allow_reapply=False, *, reason):
+    async def user_deny(self, ctx: Context, user: discord.User, allow_reapply=False, *, reason):
         async with self.session.post(self.url + "internal/users/deny", json={"userid": user.id, "retry": allow_reapply, "reason": reason}) as resp:
             if resp.status != 204:
                 return await ctx.send(f"Internal error: {resp.status}, {resp.reason}")
@@ -652,7 +659,7 @@ class Idevision(commands.Cog):
 
     @idevision.group(invoke_without_command=True, aliases=['user'])
     @commands.is_owner()
-    async def users(self, ctx, username: Union[discord.User, str], unsafe:bool=False):
+    async def users(self, ctx: Context, username: Union[discord.User, str], unsafe:bool=False):
         url = yarl.URL(self.url + "internal/users")
         if isinstance(username, discord.User):
             url = url.with_query(username=username.name + username.discriminator, discord_id=username.id)
@@ -675,7 +682,7 @@ class Idevision(commands.Cog):
 
     @users.command("add")
     @commands.is_owner()
-    async def user_add(self, ctx, user: discord.User, *perms):
+    async def user_add(self, ctx: Context, user: discord.User, *perms):
         async with self.session.post(self.url + "internal/users",
                                      json={"username": user.name + user.discriminator, "permissions": perms, "discord_id": user.id}) as resp:
             if 200 <= resp.status < 300:
@@ -690,7 +697,7 @@ class Idevision(commands.Cog):
 
     @users.command("addperms", aliases=['addperm', 'ap'])
     @commands.is_owner()
-    async def user_add_perm(self, ctx, username: Union[discord.User, str], *perms):
+    async def user_add_perm(self, ctx: Context, username: Union[discord.User, str], *perms):
         url = yarl.URL(self.url + "internal/users")
         if isinstance(username, discord.User):
             url = url.with_query(username=username.name + username.discriminator, discord_id=username.id)
@@ -722,7 +729,7 @@ class Idevision(commands.Cog):
 
     @users.command("removeperm", aliases=['removeperms', 'rmperm', 'rmperms', 'rp'])
     @commands.is_owner()
-    async def user_rm_perm(self, ctx, username: Union[discord.User, str], *perms):
+    async def user_rm_perm(self, ctx: Context, username: Union[discord.User, str], *perms):
         url = yarl.URL(self.url + "internal/users")
         if isinstance(username, discord.User):
             url = url.with_query(username=username.name + username.discriminator, discord_id=username.id)
@@ -754,7 +761,7 @@ class Idevision(commands.Cog):
 
     @users.command("setname")
     @commands.is_owner()
-    async def user_set_name(self, ctx, currentname: Union[discord.User, str], new_name: str):
+    async def user_set_name(self, ctx: Context, currentname: Union[discord.User, str], new_name: str):
         if isinstance(currentname, discord.User):
             currentname = currentname.name + currentname.discriminator
 
@@ -772,7 +779,7 @@ class Idevision(commands.Cog):
 
     @users.command()
     @commands.is_owner()
-    async def deauth(self, ctx, username: str):
+    async def deauth(self, ctx: Context, username: str):
         async with self.session.post(self.url + "internal/users/deauth", json={"username": username}) as resp:
             if 200 <= resp.status < 300:
                 await ctx.send("User has been deauthed")
@@ -785,7 +792,7 @@ class Idevision(commands.Cog):
 
     @users.command()
     @commands.is_owner()
-    async def reauth(self, ctx, username: str):
+    async def reauth(self, ctx: Context, username: str):
         async with self.session.post(self.url + "internal/users/auth", json={"username": username}) as resp:
             if 200 <= resp.status < 300:
                 await ctx.send("User has been reauthed")
@@ -803,7 +810,7 @@ class Idevision(commands.Cog):
 
     @cdn.command("stats")
     @commands.is_owner()
-    async def cdn_stats(self, ctx, user: Optional[str] = None):
+    async def cdn_stats(self, ctx: Context, user: Optional[str] = None):
         if user:
             async with self.session.get(self.url + f"cdn/user?username={user}") as resp:
                 if 200 <= resp.status < 300:
@@ -824,7 +831,7 @@ class Idevision(commands.Cog):
 
     @cdn.command("purge", hidden=True)
     @commands.is_owner()
-    async def cdn_purge(self, ctx, user: str):
+    async def cdn_purge(self, ctx: Context, user: str):
         async with self.session.post(self.url + "cdn/purge", json={"username": user}) as resp:
             if 200 <= resp.status < 300:
                 await ctx.send(f"Purged {user}'s images")
@@ -957,7 +964,7 @@ class Idevision(commands.Cog):
 
     @cdn.command("listnode")
     @commands.is_owner()
-    async def cdn_listnode(self, ctx, node: str):
+    async def cdn_listnode(self, ctx: Context, node: str):
         """
         Lists the content of a node
         """
@@ -968,11 +975,12 @@ class Idevision(commands.Cog):
             data = await resp.json()
             d = [list(x.values()) for x in data[node]]
             d = tabulate.tabulate(d, headers=list(data[node][-1].keys()), tablefmt="psql")
-            await ctx.paginate_text(d, codeblock=True)
+            pages = paginator.TextPages(ctx, d)
+            await pages.paginate()
 
     @cdn.command("nodes")
     @commands.is_owner()
-    async def cdn_nodes(self, ctx, safe=True):
+    async def cdn_nodes(self, ctx: Context, safe=True):
         """
         Lists all nodes
         """
@@ -992,7 +1000,8 @@ class Idevision(commands.Cog):
 
             fmt += "\n"
 
-        await ctx.paginate_text(fmt)
+        pages = paginator.TextPages(ctx, fmt, prefix="", suffix="")
+        await pages.paginate()
 
     @idevision.command("homepage")
     async def cdn_homepage(self, ctx: Context,
@@ -1022,7 +1031,7 @@ class Idevision(commands.Cog):
 
     @idevision.command("logs")
     @commands.is_owner()
-    async def get_logs(self, ctx, unsafe: Optional[bool], page: Optional[int] = 0, oldest_first: Optional[bool]=False):
+    async def get_logs(self, ctx: Context, unsafe: Optional[bool], page: Optional[int] = 0, oldest_first: Optional[bool]=False):
         url = yarl.URL(self.url+"internal/logs").with_query({
             "page": str(page),
             "oldest-first": str(oldest_first).lower(),
@@ -1036,7 +1045,8 @@ class Idevision(commands.Cog):
             data = data['rows']
 
         table = tabulate.tabulate([list(x.values()) for x in data], headers=list(data[0].keys()))
-        await ctx.paginate_text(table, True)
+        pages = paginator.TextPages(ctx, table)
+        await pages.paginate()
 
     @idevision.group("permissions", aliases=['perms'], invoke_without_command=True)
     @commands.is_owner()
@@ -1058,7 +1068,7 @@ class Idevision(commands.Cog):
 
     @perms.command("add")
     @commands.is_owner()
-    async def routes_add(self, ctx, perm: str):
+    async def routes_add(self, ctx: Context, perm: str):
         async with self.session.post(self.url + "internal/permissions", json={"permission": perm}) as resp:
             if resp.status != 204:
                 return await ctx.send(f"Failed to add permission: {resp.status, resp.reason}")
@@ -1067,7 +1077,7 @@ class Idevision(commands.Cog):
 
     @perms.command("remove")
     @commands.is_owner()
-    async def routes_remove(self, ctx, perm: str):
+    async def routes_remove(self, ctx: Context, perm: str):
         async with self.session.delete(self.url + "internal/permissions", json={"permission": perm}) as resp:
             if resp.status != 204:
                 return await ctx.send(f"Failed to add permission: {resp.status, resp.reason}")
@@ -1076,7 +1086,7 @@ class Idevision(commands.Cog):
 
     @perms.command(aliases=['removeroute', 'editroute'])
     @commands.is_owner()
-    async def addroute(self, ctx, route: str, method: str, perm: Optional[str] = None, force = False):
+    async def addroute(self, ctx: Context, route: str, method: str, perm: Optional[str] = None, force = False):
         if all((route, method, perm)):
             async with self.session.post(self.url + "internal/routes?force=" + str(force), json={
                 "endpoint": route,
@@ -1101,7 +1111,7 @@ class Idevision(commands.Cog):
 
     @idevision.command("beta")
     @commands.is_owner()
-    async def toggle_beta(self, ctx, state: Optional[bool] = None):
+    async def toggle_beta(self, ctx: Context, state: Optional[bool] = None):
         if state is None:
             return await ctx.send(f"Currently targeting {'beta' if self.url == 'https://beta.idevision.net/api/' else 'production'} idevision site ({self.url.replace('api/', '')})")
 
