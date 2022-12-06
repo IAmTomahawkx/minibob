@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 async def setup(bot: Bot):
     await bot.add_cog(Pythonista(bot))
 
-BADBIN_RE = re.compile(r"https://(?P<site>pastebin.com|hastebin.com)/(?P<slug>[a-zA-Z]+)[.]?(?P<ext>[a-z]{1,5})?")
+BADBIN_RE = re.compile(r"https://(?P<site>pastebin.com|hastebin.com)/(?P<slug>[a-zA-Z0-9]+)[.]?(?P<ext>[a-z]{1,8})?")
 GITHUB_RE = re.compile(r"([a-zA-Z0-9_!]+)?(/[a-zA-Z0-9_!]+)?##([0-9]+)")
 
 SPECIAL_CHANNEL_INDEX = {
