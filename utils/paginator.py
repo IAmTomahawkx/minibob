@@ -223,6 +223,8 @@ class Pages(ui.View):
         if interaction.user.id != self.author.id:
             return False
 
+        return True
+
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         resp = self._check(interaction)
 
