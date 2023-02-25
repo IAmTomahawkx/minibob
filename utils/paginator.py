@@ -98,9 +98,9 @@ class Pages(ui.View):
 
     def setup_buttons(self):
         self.clear_items()
-        for (emoji, btn) in self.reaction_emojis:
+        for (emoji, button) in self.reaction_emojis:
             btn = ui.Button(emoji=emoji)
-            btn.callback = btn
+            btn.callback = button
             self.add_item(btn)
 
     def get_page(self, page: int):

@@ -1,4 +1,4 @@
-git+https://github.com/rapptz/discord.py@master
+discord.py
 tabulate
 toml
 jishaku
