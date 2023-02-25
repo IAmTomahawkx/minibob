@@ -235,6 +235,7 @@ class Pages(ui.View):
         if self.maximum_pages > 1:
             self.paginating = True
 
+        self.setup_buttons()
         await self.show_page(1, first=True, msg_kwargs=msg_kwargs)
 
         await self.wait()
