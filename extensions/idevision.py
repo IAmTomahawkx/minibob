@@ -593,7 +593,7 @@ class Idevision(commands.Cog):
         async with self.session.post(self.url + "internal/users/token", json={
             "discord_id": ctx.author.id
         }) as resp:
-            if resp.status == 400 and resp.reason == "Account not found":
+            if resp.status == 400:
                 pref = await commands.clean_content().convert(ctx, ctx.prefix)
                 return await ctx.send(f"You do not have an idevision account. Use `{pref}idevision apply <reason>` to apply for an account.")
             if resp.status != 200:
